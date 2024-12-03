@@ -36,7 +36,10 @@ extension PanSlip where Base: UIView {
     }
     
     // MARK: - Public methods
-    
+    public func updatePosition(initialPosition: CGPoint = .zero) {
+        viewProxy?.initialPosition = initialPosition
+    }
+
     public func enable(slipDirection: PanSlipDirection, slipCompletion: (() -> Void)? = nil) {
         self.slipDirection = slipDirection
         self.slipCompletion = slipCompletion
@@ -101,7 +104,8 @@ extension PanSlip where Base: UIView {
 private class PanSlipViewProxy: NSObject {
     
     // MARK: - Properties
-    
+    var initialPosition: CGPoint = .zero
+
     private unowned let view: UIView
     private var slipDirection: PanSlipDirection?
     private var slipCompletion: (() -> Void)?
@@ -133,7 +137,7 @@ private class PanSlipViewProxy: NSObject {
     private func rollback(completion: (() -> Void)? = nil) {
         let rollbackDuration: TimeInterval = 0.3
         UIView.animate(withDuration: rollbackDuration, animations: {
-            self.view.frame.origin = .zero
+            self.view.frame.origin = self.initialPosition
             self.view.layoutIfNeeded()
         })
     }
@@ -165,9 +169,9 @@ private class PanSlipViewProxy: NSObject {
             guard progress > 0 else {return}
             switch slipDirection {
             case .leftToRight, .righTotLeft:
-                view.frame.origin.x = translation.x
+                view.frame.origin.x = initialPosition.x + translation.x
             case .topToBottom, .bottomToTop:
-                view.frame.origin.y = translation.y
+                view.frame.origin.y = initialPosition.y + translation.y
             }
         case .cancelled:
             rollback()
