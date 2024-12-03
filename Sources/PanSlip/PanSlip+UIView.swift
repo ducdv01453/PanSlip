@@ -60,7 +60,7 @@ extension PanSlip where Base: UIView {
         viewProxy = nil
     }
     
-    public func slip(animated: Bool) {
+    public func slip(animated: Bool, velc: CGFloat = 1) {
         func slipUsingDirection() {
             guard let slipDirection = slipDirection else {return}
             
@@ -70,13 +70,13 @@ extension PanSlip where Base: UIView {
             
             switch slipDirection {
             case .leftToRight:
-                base.frame.origin.x = base.bounds.width
+                base.frame.origin.x = UIScreen.main.bounds.size.width
             case .righTotLeft:
-                base.frame.origin.x = -base.bounds.width
+                base.frame.origin.x = -UIScreen.main.bounds.size.width
             case .topToBottom:
-                base.frame.origin.y = base.bounds.height
+                base.frame.origin.y = UIScreen.main.bounds.size.height
             case .bottomToTop:
-                base.frame.origin.y = -base.bounds.height
+                base.frame.origin.y = -UIScreen.main.bounds.size.height
             }
         }
         
@@ -86,7 +86,7 @@ extension PanSlip where Base: UIView {
             return
         }
         
-        let slipDuration: TimeInterval = 0.3
+        let slipDuration: TimeInterval = 0.3*velc
         UIView.animate(withDuration: slipDuration, animations: {
             slipUsingDirection()
         }) { (isFinished) in
@@ -148,17 +148,19 @@ private class PanSlipViewProxy: NSObject {
         guard let slipDirection = slipDirection else {return}
         
         let translation = sender.translation(in: view)
+        let velocity = sender.velocity(in: view)
+
         let size = view.bounds.size
         var movementPercent: CGFloat?
         switch slipDirection {
         case .leftToRight:
-            movementPercent = translation.x / size.width
+            movementPercent = (translation.x+velocity.x) / size.width
         case .righTotLeft:
-            movementPercent = -(translation.x / size.width)
+            movementPercent = -((translation.x+velocity.x) / size.width)
         case .topToBottom:
-            movementPercent = translation.y / size.height
+            movementPercent = (translation.y+velocity.y) / size.height
         case .bottomToTop:
-            movementPercent = -(translation.y / size.height)
+            movementPercent = -((translation.y+velocity.y) / size.height)
         }
         
         guard let movement = movementPercent else {return}
@@ -176,13 +178,13 @@ private class PanSlipViewProxy: NSObject {
         case .cancelled:
             rollback()
         case .ended:
-            let percentThreshold: CGFloat = (view as? PanSlipBehavior)?.percentThreshold ?? 0.3
+            let percentThreshold: CGFloat = (view as? PanSlipBehavior)?.percentThreshold ?? 0.5
             guard progress > percentThreshold else {
                 rollback()
                 return
             }
             
-            view.ps.slip(animated: true)
+            view.ps.slip(animated: true, velc: max(0.01,min(200.0/velocity.y,1)))
         default:
             break
         }
