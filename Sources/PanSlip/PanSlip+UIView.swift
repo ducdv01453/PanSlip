@@ -40,13 +40,14 @@ extension PanSlip where Base: UIView {
         viewProxy?.initialPosition = initialPosition
     }
 
-    public func enable(slipDirection: PanSlipDirection, slipCompletion: (() -> Void)? = nil) {
+    public func enable(slipDirection: PanSlipDirection, scrollView: UIScrollView? = nil, slipCompletion: (() -> Void)? = nil) {
         self.slipDirection = slipDirection
         self.slipCompletion = slipCompletion
         
         if viewProxy == nil {
             viewProxy = PanSlipViewProxy(view: base,
                                          slipDirection: slipDirection,
+                                         scrollView: scrollView,
                                          slipCompletion: slipCompletion)
             viewProxy?.configure()
         }
@@ -112,12 +113,15 @@ private class PanSlipViewProxy: NSObject {
     
     private lazy var panGesture: UIPanGestureRecognizer = UIPanGestureRecognizer(target: self, action: #selector(panGesture(_:)))
     
+    private weak var scrollView: UIScrollView?
+    private var lastTranslation: CGPoint = .zero
+
     // MARK: - Con(De)structor
     
-    init(view: UIView, slipDirection: PanSlipDirection, slipCompletion: (() -> Void)?) {
+    init(view: UIView, slipDirection: PanSlipDirection, scrollView: UIScrollView? = nil, slipCompletion: (() -> Void)?) {
         self.view = view
         super.init()
-        
+        self.scrollView = scrollView
         self.slipDirection = slipDirection
         self.slipCompletion = slipCompletion
     }
@@ -125,6 +129,7 @@ private class PanSlipViewProxy: NSObject {
     // MARK: - Internal methods
     
     func configure() {
+        panGesture.delegate = self
         view.addGestureRecognizer(panGesture)
     }
     
@@ -147,8 +152,19 @@ private class PanSlipViewProxy: NSObject {
     @objc private func panGesture(_ sender: UIPanGestureRecognizer) {
         guard let slipDirection = slipDirection else {return}
         
-        let translation = sender.translation(in: view)
+        var translation = sender.translation(in: view)
         let velocity = sender.velocity(in: view)
+
+        if (scrollView?.contentOffset.y ?? 0 > 0) {
+            lastTranslation = translation
+            return
+        }
+
+        /// Calculate the last translation when scroll from bottom
+        if lastTranslation.y > 0 {
+            translation.y = translation.y - lastTranslation.y
+            lastTranslation = .zero
+        }
 
         let size = view.bounds.size
         var movementPercent: CGFloat?
@@ -189,4 +205,10 @@ private class PanSlipViewProxy: NSObject {
             break
         }
     }
+}
+
+extension PanSlipViewProxy: UIGestureRecognizerDelegate {
+  func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+      return true
+  }
 }
